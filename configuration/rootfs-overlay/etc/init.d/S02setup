@@ -1,0 +1,53 @@
+#!/usr/bin/env /bin/sh
+# Device setup based on boot partition setup script.
+#
+[ "$1" != "start" ] && return 0
+[ "$(id -u)" = "0" ] || echo "Not root." >&2
+PWD=$(pwd)
+CON=/dev/ttyprintk
+LOG=/root/setup.log
+
+# Aux functions
+pass() { echo "[pass] $@"; echo "[setup|pass] $@" >$CON; }
+fail() { echo "[fail] $@"; echo "[setup|fail] $@" >$CON; }
+abort() { fail "$@ | !abort"; clean; exit 1;  }
+clean(){ cd "$PWD"; umount /tmp/.boot >/dev/null 2>&1; rm -rf /tmp/.setup >/dev/null 2>&1; rm -f /tmp/.boot >/dev/null 2>&1; return 0; }
+
+trap clean INT TERM
+clean
+
+if [ "$2" = "--with" ]; then
+  # Given location for setup file.
+  [ -f "$3" ] || [ -d "$3" ] || abort "Setup file/dir does not exist '$3'"
+  mkdir -p /tmp/.setup && cp -r $3 /tmp/.setup/ || fail "Could not copy setup file."
+else
+  # Boot partition setup data import, silently exits if no setup files are found.
+  mkdir -p /tmp/.boot || fail "Could not create boot partition mount point."
+  mount /dev/mmcblk0p1 /tmp/.boot || fail "Could not mount boot partition."
+  setup_source=$(ls -1d /tmp/.boot/setup.* 2>/dev/null)
+  if [ ! -z "$setup_source" ]; then
+    mkdir -p /tmp/.setup && mv $setup_source /tmp/.setup/ || fail "Could not move setup files."
+  fi
+  umount /tmp/.boot >/dev/null 2>&1
+  rmdir /tmp/.boot >/dev/null 2>&1
+  [ -z "$setup_source" ] && clean && exit 0
+fi
+
+# Extract from archives, find setup.sh
+cd /tmp/.setup/ || abort "Setup root directory not existing"
+setup_source=$(ls -1d setup.* | head -n1)
+case "$setup_source" in
+  *.sh) [ -f "$setup_source" ] || abort "Setup shell script is not a file." ;;
+  *.tar) tar xf $setup_source || abort "Failed to extract setup tar." ;;
+  *.tar.gz|*.tgz) tar xzf $setup_source || abort "Failed to extract gzipped setup tar." ;;
+  *.zip) unzip -n -q $setup_source -d /tmp/.setup/ || abort "Failed to extract setup zip." ;;
+  *) [ -d "$setup_source" ] || abort "Unsupported setup package format for '$setup_source'." ;;
+esac
+setup_script=$(find /tmp/.setup/ -type f -name setup.sh 2>/dev/null | head -n1)
+[ -z "$setup_script" ] && abort "No setup.sh found in the setup file."
+
+# Run setup.sh
+chmod 700 $setup_script
+cd $(dirname $setup_script)
+/usr/bin/env /bin/sh ./$(basename $setup_script) 2>&1 | tee "$LOG" >$CON && pass "Setup script succeeded." || fail "Setup script returned an error."
+clean

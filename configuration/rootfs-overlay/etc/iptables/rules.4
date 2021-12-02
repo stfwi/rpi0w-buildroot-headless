@@ -1,0 +1,36 @@
+# IPv4 filter, apply with iptables-restore < /etc/iptables/rules.v4
+#  iptables -A INPUT -i lo -j ACCEPT
+#  iptables -A INPUT -p icmp --icmp-type any -j ACCEPT
+#  iptables -A INPUT -p tcp ! --syn -m state --state NEW -j DROP
+#  iptables -A INPUT -f -j DROP
+#  iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
+#  iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
+#  iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+#  iptables -A INPUT -p tcp -s 192.168.0.0/16 -j ACCEPT
+#  iptables -A INPUT -p tcp -s 172.16.0.0/12 -j ACCEPT
+#  iptables -A INPUT -p tcp -s 10.1.0.0/16 -j ACCEPT
+#  iptables -A INPUT -p udp -s 192.168.0.0/16 -j ACCEPT
+#  iptables -A INPUT -p udp -s 172.16.0.0/12 -j ACCEPT
+#  iptables -A INPUT -p udp -s 10.1.0.0/16 -j ACCEPT
+#  iptables -A INPUT -j REJECT
+#---
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -i lo -j ACCEPT
+-A INPUT -p icmp -m icmp --icmp-type any -j ACCEPT
+-A INPUT -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -j DROP
+-A INPUT -f -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,PSH,ACK,URG -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -j DROP
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A INPUT -s 192.168.0.0/16 -p tcp -j ACCEPT
+-A INPUT -s 172.16.0.0/12 -p tcp -j ACCEPT
+-A INPUT -s 10.1.0.0/16 -p tcp -j ACCEPT
+-A INPUT -s 192.168.0.0/16 -p udp -j ACCEPT
+-A INPUT -s 172.16.0.0/12 -p udp -j ACCEPT
+-A INPUT -s 10.1.0.0/16 -p udp -j ACCEPT
+-A INPUT -j REJECT --reject-with icmp-port-unreachable
+COMMIT
+#---

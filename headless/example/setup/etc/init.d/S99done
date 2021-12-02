@@ -1,0 +1,11 @@
+#!/bin/sh
+
+#
+# Example init action for boot (service start):
+#
+[ "$1" = "start" ] && echo "Init done." >/dev/ttyprintk
+
+#
+# Example init action for shutdown (service stop):
+#
+[ "$1" = "stop" ] && echo "Shutdown ..." >/dev/ttyprintk

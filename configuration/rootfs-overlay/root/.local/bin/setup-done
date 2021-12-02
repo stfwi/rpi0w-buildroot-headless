@@ -1,0 +1,4 @@
+#!/bin/sh
+unlink /etc/init.d/S02setup >/dev/null 2>&1
+unlink /root/.local/bin/setup-done >/dev/null 2>&1
+echo "[ok] Headless setup feature removed from system startup."
